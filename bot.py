@@ -15,7 +15,10 @@ from datetime import datetime, timezone
 import websockets
 
 # ── Config ──────────────────────────────────────────────────────────────────
-BINANCE_WS = "wss://stream.binance.com:9443/ws/btcusdt@trade"
+BINANCE_WS_ENDPOINTS = [
+    "wss://stream.binance.com:9443/ws/btcusdt@trade",
+    "wss://stream.binance.us:9443/ws/btcusd@trade",
+]
 WINDOW_SECONDS = 300          # 5 minutes
 SIGNAL_OFFSET = 10            # seconds before close to evaluate
 MIN_MOVE_USD = 5.0            # minimum BTC move to place a bet
@@ -111,15 +114,18 @@ async def run():
     async def price_feed():
         nonlocal latest_price
         while True:
-            try:
-                async with websockets.connect(BINANCE_WS) as ws:
-                    logger.info("📡 Connected to Binance WebSocket")
-                    async for msg in ws:
-                        data = json.loads(msg)
-                        latest_price = float(data["p"])
-            except Exception as e:
-                logger.warning(f"WS error: {e}, reconnecting in 3s...")
-                await asyncio.sleep(3)
+            for endpoint in BINANCE_WS_ENDPOINTS:
+                try:
+                    async with websockets.connect(endpoint) as ws:
+                        logger.info(f"📡 Connected to {endpoint}")
+                        async for msg in ws:
+                            data = json.loads(msg)
+                            latest_price = float(data["p"])
+                except Exception as e:
+                    logger.warning(f"WS error ({endpoint}): {e}")
+                    continue
+            logger.info("All endpoints failed, retrying in 5s...")
+            await asyncio.sleep(5)
 
     async def market_loop():
         nonlocal balance
