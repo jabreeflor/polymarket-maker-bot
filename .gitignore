@@ -1,0 +1,6 @@
+paper_trades.db
+bot.log
+bot.pid
+__pycache__/
+*.pyc
+.venv/
